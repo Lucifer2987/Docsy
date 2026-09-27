@@ -2,9 +2,8 @@ from ingestion.loader import load_pdf
 from ingestion.splitter import split_documents
 
 from vectorstore.store import create_vector_store
-from retrieval.retriever import create_retriever
 
-from generation.chain import create_rag_chain
+from rag.pipeline import RAGPipeline
 
 
 # -------------------------
@@ -55,80 +54,33 @@ print("Vector store created!")
 
 
 # -------------------------
-# 4. Create Retriever
+# 4. Create RAG Pipeline
 # -------------------------
 
-retriever = create_retriever(vector_store, k=2)
-
-
-# -------------------------
-# 5. Create LLM Chain
-# -------------------------
-
-rag_chain = create_rag_chain()
+pipeline = RAGPipeline(vector_store, k=2)
 
 
 # -------------------------
-# 6. Ask Question
+# 5. Ask Question
 # -------------------------
 
-question = "What data preprocessing techniques were implemented?"
-
-
-# -------------------------
-# 7. Retrieve relevant documents
-# -------------------------
-
-retrieved_docs = retriever.invoke(question)
-
+question = "How were missing values handled?"
 
 # -------------------------
-# 8. Build context with metadata
+# 6. Ask RAG Pipeline
 # -------------------------
 
-context_parts = []
-
-for doc in retrieved_docs:
-
-    page_number = doc.metadata.get("page", 0) + 1
-    source = doc.metadata.get("source", "Unknown")
-
-    context_parts.append(
-        f"""
-Source: {source}
-Page: {page_number}
-
-Content:
-{doc.page_content}
-"""
-    )
-
-context = "\n\n".join(context_parts)
-
-
-# -------------------------
-# 9. Send context + question to LLM
-# -------------------------
-
-response = rag_chain.invoke({
-    "context": context,
-    "question": question
-})
-
-
-# -------------------------
-# 10. Extract clean answer
-# -------------------------
-
-answer = extract_response_text(response)
-
-
-# -------------------------
-# 11. Print answer
-# -------------------------
+result = pipeline.ask(question)
 
 print("\n==============================")
 print("ANSWER")
 print("==============================")
 
-print(answer)
+print(result["answer"])
+
+print("\n==============================")
+print("SOURCES")
+print("==============================")
+
+for source in result["sources"]:
+    print(f"- {source['source']} | Page {source['page']}")

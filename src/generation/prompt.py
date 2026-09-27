@@ -13,7 +13,6 @@ If the answer cannot be found in the context, say:
 
 Do not make up information.
 
-When answering, mention the relevant source and page number when available.
 
 Context:
 {context}
