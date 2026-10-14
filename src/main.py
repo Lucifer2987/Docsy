@@ -1,3 +1,5 @@
+import sys
+
 from ingestion.loader import load_pdf
 from ingestion.splitter import split_documents
 
@@ -7,30 +9,17 @@ from rag.pipeline import RAGPipeline
 
 
 # -------------------------
-# Helper: Extract LLM text
-# -------------------------
-
-def extract_response_text(response):
-    if isinstance(response.content, str):
-        return response.content
-
-    if isinstance(response.content, list):
-        text_parts = []
-
-        for block in response.content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                text_parts.append(block.get("text", ""))
-
-        return "\n".join(text_parts)
-
-    return str(response.content)
-
-
-# -------------------------
 # 1. Load PDF
 # -------------------------
 
-documents = load_pdf("data/pdfs/sample.pdf")
+try:
+    documents = load_pdf("data/pdfs/sample.pdf")
+except FileNotFoundError as exc:
+    print(f"Error: {exc}")
+    sys.exit(1)
+except ValueError as exc:
+    print(f"Error: {exc}")
+    sys.exit(1)
 
 print(f"Total pages: {len(documents)}")
 
@@ -42,6 +31,10 @@ print(f"Total pages: {len(documents)}")
 chunks = split_documents(documents)
 
 print(f"Total chunks: {len(chunks)}")
+
+if not chunks:
+    print("Error: No text chunks were produced. The PDF may contain only images.")
+    sys.exit(1)
 
 
 # -------------------------
@@ -66,11 +59,14 @@ pipeline = RAGPipeline(vector_store, k=2)
 
 question = "How were missing values handled?"
 
-# -------------------------
-# 6. Ask RAG Pipeline
-# -------------------------
-
-result = pipeline.ask(question)
+try:
+    result = pipeline.ask(question)
+except ValueError as exc:
+    print(f"Input error: {exc}")
+    sys.exit(1)
+except RuntimeError as exc:
+    print(f"API error: {exc}")
+    sys.exit(1)
 
 print("\n==============================")
 print("ANSWER")
