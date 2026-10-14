@@ -36,7 +36,7 @@ class RAGPipeline:
 
         Raises:
             ValueError:  If the question is empty.
-            RuntimeError: If the Gemini API returns a quota (429) or
+            RuntimeError: If the Groq API returns a rate limit (429) or
                           availability (503) error, or any other API failure.
         """
         # --- Input validation ---
@@ -80,9 +80,8 @@ class RAGPipeline:
             err_msg = str(exc).lower()
             if code == 429 or "429" in err_msg or "rate limit" in err_msg or "resource_exhausted" in err_msg or "quota" in err_msg:
                 raise RuntimeError(
-                    "LLM API rate limit / quota exhausted (HTTP 429). "
-                    "You have reached the request limit. "
-                    "Please wait for your quota to reset or check your API key at aistudio or groq."
+                    "Groq API rate limit reached (HTTP 429). "
+                    "Please wait a few moments before sending your next request, or check https://console.groq.com."
                 ) from exc
             if code in (500, 502, 503, 504) or "503" in err_msg or "unavailable" in err_msg or "5xx" in err_msg or "internal server" in err_msg:
                 raise RuntimeError(

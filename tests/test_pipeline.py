@@ -1,4 +1,4 @@
-﻿"""
+"""
 Tests for src/rag/pipeline.py (RAGPipeline)
 
 No real Gemini calls are made. The retriever and RAG chain are mocked so tests
@@ -10,7 +10,13 @@ import pytest
 
 # Import after setting pythonpath via pyproject.toml
 from rag.pipeline import RAGPipeline
-from google.genai.errors import ClientError, ServerError
+
+
+class MockAPIError(Exception):
+    def __init__(self, code, message=""):
+        super().__init__(message)
+        self.code = code
+        self.status_code = code
 
 
 # ---------------------------------------------------------------------------
@@ -230,34 +236,28 @@ class TestAskQuotaError:
         docs = [_make_doc()]
         pipeline = _build_pipeline(docs)
 
-        quota_error = ClientError(
-            code=429,
-            response_json={"error": {"code": 429, "message": "Resource exhausted", "status": "RESOURCE_EXHAUSTED"}},
-        )
+        quota_error = MockAPIError(code=429, message="Rate limit reached: 429 RESOURCE_EXHAUSTED")
         pipeline._mock_chain.invoke.side_effect = quota_error
 
         with pytest.raises(RuntimeError) as exc_info:
             pipeline.ask("Question?")
 
         msg = str(exc_info.value).lower()
-        assert "429" in msg or "quota" in msg
+        assert "429" in msg or "quota" in msg or "rate limit" in msg
 
     def test_quota_error_message_contains_guidance(self):
         docs = [_make_doc()]
         pipeline = _build_pipeline(docs)
 
-        quota_error = ClientError(
-            code=429,
-            response_json={"error": {"code": 429, "message": "Resource exhausted", "status": "RESOURCE_EXHAUSTED"}},
-        )
+        quota_error = MockAPIError(code=429, message="Rate limit reached: 429 RESOURCE_EXHAUSTED")
         pipeline._mock_chain.invoke.side_effect = quota_error
 
         with pytest.raises(RuntimeError) as exc_info:
             pipeline.ask("Question?")
 
         # The message must tell the user what to do — not just rethrow the raw error.
-        msg = str(exc_info.value)
-        assert any(keyword in msg for keyword in ["quota", "wait", "aistudio", "limit", "429"])
+        msg = str(exc_info.value).lower()
+        assert any(keyword in msg for keyword in ["wait", "limit", "429", "groq"])
 
 
 # ---------------------------------------------------------------------------
@@ -269,10 +269,7 @@ class TestAskServerError:
         docs = [_make_doc()]
         pipeline = _build_pipeline(docs)
 
-        server_error = ServerError(
-            code=503,
-            response_json={"error": {"code": 503, "message": "Service unavailable", "status": "UNAVAILABLE"}},
-        )
+        server_error = MockAPIError(code=503, message="Service unavailable")
         pipeline._mock_chain.invoke.side_effect = server_error
 
         with pytest.raises(RuntimeError) as exc_info:
@@ -285,10 +282,7 @@ class TestAskServerError:
         docs = [_make_doc()]
         pipeline = _build_pipeline(docs)
 
-        server_error = ServerError(
-            code=503,
-            response_json={"error": {"code": 503, "message": "Service unavailable", "status": "UNAVAILABLE"}},
-        )
+        server_error = MockAPIError(code=503, message="Service unavailable")
         pipeline._mock_chain.invoke.side_effect = server_error
 
         with pytest.raises(RuntimeError) as exc_info:
