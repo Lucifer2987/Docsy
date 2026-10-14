@@ -77,25 +77,26 @@ class RAGPipeline:
                 "context": context,
                 "question": question,
             })
-        except ClientError as exc:
-            if exc.code == 429:
+        except Exception as exc:
+            code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+            err_msg = str(exc).lower()
+            if code == 429 or "429" in err_msg or "rate limit" in err_msg or "resource_exhausted" in err_msg or "quota" in err_msg:
                 raise RuntimeError(
-                    "Gemini API quota exhausted (HTTP 429). "
-                    "You have reached the free-tier daily limit for this model. "
-                    "Please wait for your quota to reset (usually 24 hours) or "
-                    "check your usage at https://aistudio.google.com."
+                    "LLM API rate limit / quota exhausted (HTTP 429). "
+                    "You have reached the request limit. "
+                    "Please wait for your quota to reset or check your API key at aistudio or groq."
+                ) from exc
+            if code in (500, 502, 503, 504) or "503" in err_msg or "unavailable" in err_msg or "5xx" in err_msg or "internal server" in err_msg:
+                raise RuntimeError(
+                    "LLM API is temporarily unavailable (HTTP 5xx). "
+                    "This is a temporary server issue. Please try again in a few minutes."
+                ) from exc
+            if code and 400 <= code < 500:
+                raise RuntimeError(
+                    f"LLM API client error (HTTP {code}): {exc}"
                 ) from exc
             raise RuntimeError(
-                f"Gemini API client error (HTTP {exc.code}): {exc}"
-            ) from exc
-        except ServerError as exc:
-            raise RuntimeError(
-                "Gemini API is temporarily unavailable (HTTP 5xx). "
-                "This is a temporary server issue. Please try again in a few minutes."
-            ) from exc
-        except Exception as exc:
-            raise RuntimeError(
-                f"An unexpected error occurred while contacting the Gemini API: {exc}"
+                f"An unexpected error occurred while contacting the LLM API: {exc}"
             ) from exc
 
         # --- 5. Extract clean answer ---
