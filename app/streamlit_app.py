@@ -114,11 +114,22 @@ with st.sidebar:
         help="Number of relevant chunks retrieved per question. With multiple PDFs, a higher k gives broader coverage.",
     )
 
-    # Dynamically update retriever k if pipeline already exists and k changed
+    # Dynamically update retriever k or refresh pipeline if LLM changed
     if (
         st.session_state["pipeline"] is not None
         and st.session_state["vector_store"] is not None
     ):
+        try:
+            from langchain_groq import ChatGroq
+            steps = getattr(st.session_state["pipeline"].rag_chain, "steps", [])
+            if steps and not isinstance(steps[-1], ChatGroq):
+                st.session_state["pipeline"] = RAGPipeline(
+                    st.session_state["vector_store"],
+                    k=top_k,
+                )
+        except Exception:
+            pass
+
         current_k = st.session_state["pipeline"].retriever.search_kwargs.get("k")
         if current_k != top_k:
             st.session_state["pipeline"].retriever = create_retriever(

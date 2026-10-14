@@ -1,5 +1,3 @@
-from google.genai.errors import ClientError, ServerError
-
 from retrieval.retriever import create_retriever
 from generation.chain import create_rag_chain
 
@@ -11,7 +9,7 @@ class RAGPipeline:
         self.rag_chain = create_rag_chain()
 
     def _extract_response_text(self, response) -> str:
-        """Extract plain text from a Gemini response object."""
+        """Extract plain text from an LLM response object."""
         if isinstance(response.content, str):
             return response.content
 
